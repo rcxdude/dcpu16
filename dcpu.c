@@ -79,10 +79,20 @@ static void decode(uint8_t addr) {
 }
 
 static void print_mem(uint16_t start, uint16_t end) {
-    uint16_t pos;
+    uint32_t pos;
     for (pos = start; pos < end; pos += 8) {
-        printf("%4x:",pos);
         int ii;
+        uint8_t print_line = 0;
+        for (ii = 0; ii < 8; ii++) {
+            if (mem[pos + ii] != 0) {
+                print_line = 1;
+                break;
+            }
+        }
+        if (!print_line) {
+            continue;
+        }
+        printf("%4x:",pos);
         for (ii = 0; ii < 8; ii++) {
             printf(" %04x", mem[pos + ii]);
         }
@@ -219,9 +229,9 @@ int main(int argc, char **argv) {
             }
         }
     }
-    print_mem(0,256);
+    print_mem(0,MEM_SIZE-1);
     main_loop();
-    print_mem(0,256);
+    print_mem(0,MEM_SIZE-1);
     print_regs();
     return 0;
 }
