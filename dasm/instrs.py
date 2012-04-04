@@ -18,8 +18,10 @@ opcodes = {
 }
 
 ext_opcodes = {
-    0x0: "NULL",
-    0x1: "JSR"
+    0x0: "EXT",
+    0x1: "JSR",
+#non-standard extension
+    0x14: "STOP"
 }
 
 regs = {

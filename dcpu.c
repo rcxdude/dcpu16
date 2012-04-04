@@ -219,8 +219,9 @@ void main_loop(void) {
                 mem[--SP] = PC;
                 PC = *a;
                 continue;
-            default:
+            case 0x80 | 0x14: TRACE("STOP");
                 return;
+            default:
                 assert(0);
         }
     }
