@@ -1,4 +1,4 @@
-from . import maps
+from . import instrs
 class UnknownInstruction(Exception):
     def __init__(self,instruction):
         self.instruction = instruction
@@ -18,17 +18,17 @@ class Instruction:
 
     def assemble(self):
         words = []
-        if self.instr in maps.opcodes:
+        if self.instr in instrs.opcodes:
             a_addr,a_word = self.a_addr.assemble()
             b_addr,b_word = self.b_addr.assemble()
-            asm_instr = maps.opcodes[self.instr] | \
+            asm_instr = instrs.opcodes[self.instr] | \
                    (a_addr << 4) | \
                    (b_addr << 10)
-        elif self.instr in maps.ext_opcodes:
+        elif self.instr in instrs.ext_opcodes:
             b_word = None
             a_addr,a_word = self.a_addr.assemble()
-            asm_instr = maps.opcodes['EXT'] | \
-                    (maps.ext_opcodes[self.instr] << 4) | \
+            asm_instr = instrs.opcodes['EXT'] | \
+                    (instrs.ext_opcodes[self.instr] << 4) | \
                     (a_addr << 10)
         else:
             raise UnknownInstruction(self.instr)
@@ -68,10 +68,10 @@ class Address:
                 else:
                     return (0x1f,self.offset)
                 return self.offset
-            if self.name in maps.regs:
-                return (maps.regs[self.name],None)
-            elif self.name in maps.addrs:
-                return (maps.addrs[self.name],None)
+            if self.name in instrs.regs:
+                return (instrs.regs[self.name],None)
+            elif self.name in instrs.addrs:
+                return (instrs.addrs[self.name],None)
             elif self.name in self.labels:
                 addr = self.labels[self.name].instr.addr
                 if addr < 0x20:
@@ -84,9 +84,9 @@ class Address:
             if self.name is None:
                 return (0x1e, self.offset)
             elif self.offset == 0:
-                return (maps.regs[self.name] + 0x8, None)
+                return (instrs.regs[self.name] + 0x8, None)
             else:
-                return (maps.regs[self.name] + 0x10, self.offset)
+                return (instrs.regs[self.name] + 0x10, self.offset)
 
 
 class Label:

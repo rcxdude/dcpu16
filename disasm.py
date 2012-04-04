@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import utils
 import sys
-import dasm.maps as maps
+import dasm.instrs as maps
 
-maps.addrs.update({
+instrs.addrs.update({
     0x1e: "[__WORD]",
     0x1f: "__WORD"
 })
@@ -17,17 +17,17 @@ wordlist = utils.hex_to_words(hexfile.read())
 
 def decode_addr(addr):
     if addr < 0x8:
-        return (maps.regs[addr],0)
+        return (instrs.regs[addr],0)
     if addr < 0x10:
-        return ('[' + maps.regs[addr - 0x8] + ']',0)
+        return ('[' + instrs.regs[addr - 0x8] + ']',0)
     if addr < 0x18:
-        return ('[' + maps.regs[addr - 0x10] + ' + __WORD]',1)
+        return ('[' + instrs.regs[addr - 0x10] + ' + __WORD]',1)
     if addr & 0x20:
         return (hex(addr & 0x1f),0)
     if addr == 0x1f or addr == 0x1e:
-        return (maps.addrs[addr],1)
+        return (instrs.addrs[addr],1)
     else:
-        return (maps.addrs[addr],0)
+        return (instrs.addrs[addr],0)
     return ("UNKNOWN",0)
 
 word_skip = 0
@@ -44,9 +44,9 @@ for pos,word in enumerate(wordlist):
             a_spec,skip = decode_addr((word & (0x3f << 10)) >> 10)
             word_skip += skip
             b_spec = ''
-            instr = maps.ext_opcodes[(word & (0x3f) << 4) >> 4]
+            instr = instrs.ext_opcodes[(word & (0x3f) << 4) >> 4]
         else:
-            instr = maps.opcodes[opcode]
+            instr = instrs.opcodes[opcode]
             a_spec,skip = decode_addr((word & (0x3f << 4)) >> 4)
             word_skip += skip
             b_spec,skip = decode_addr((word & (0x3f << 10)) >> 10)
