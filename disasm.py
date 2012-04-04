@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 import utils
 import sys
-import maps
+import dasm.maps as maps
+
+maps.addrs.update({
+    0x1e: "[__WORD]",
+    0x1f: "__WORD"
+})
 
 if len(sys.argv) != 2:
     print("usage: disasm.py [hex file]")
@@ -16,7 +21,7 @@ def decode_addr(addr):
     if addr < 0x10:
         return ('[' + maps.regs[addr - 0x8] + ']',0)
     if addr < 0x18:
-        return ('[' + maps.regs[addr - 0x10] + ' + WORD]',1)
+        return ('[' + maps.regs[addr - 0x10] + ' + __WORD]',1)
     if addr & 0x20:
         return (hex(addr & 0x1f),0)
     if addr == 0x1f or addr == 0x1e:
@@ -31,7 +36,7 @@ asm_line_words = []
 for pos,word in enumerate(wordlist):
     if word_skip:
         word_skip -= 1
-        asm_line = asm_line.replace('WORD',"{:#x}".format(word),1)
+        asm_line = asm_line.replace('__WORD',"{:#x}".format(word),1)
         asm_line_words.append(word)
     else:
         opcode = word & 0xf

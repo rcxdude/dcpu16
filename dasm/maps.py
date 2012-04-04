@@ -40,8 +40,6 @@ addrs = {
     0x1b: "SP",
     0x1c: "PC",
     0x1d: "O",
-    0x1e: "[WORD]",
-    0x1f: "WORD"
 }
 
 def bidirect(map_dict):

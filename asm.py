@@ -2,7 +2,7 @@
 
 import sys
 import utils
-import asmparse
+import dasm.parse
 
 if len(sys.argv) != 2:
     print('usage: asm.py program.asm')
@@ -12,9 +12,9 @@ asm_filename = sys.argv[1]
 asm_listing = open(asm_filename,'r').read()
 
 #smurf smurf smurf
-asmparse.parser.parse(asm_listing)
-labels = asmparse.labels
-instructions = asmparse.instructions
+dasm.parse.parser.parse(asm_listing)
+labels = dasm.parse.labels
+instructions = dasm.parse.instructions
 #print(labels)
 #print(instructions)
 last_addr = -1

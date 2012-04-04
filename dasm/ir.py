@@ -1,4 +1,4 @@
-import maps
+from . import maps
 class UnknownInstruction(Exception):
     def __init__(self,instruction):
         self.instruction = instruction
