@@ -106,10 +106,13 @@ void main_loop(void) {
     uint16_t instr;
     uint8_t skip = 0;
     while(1) {
+#ifdef ENABLE_TRACE
+        print_regs();
+#endif
         instr = mem[PC++];
         uint8_t opcode = instr & 0xf;
-        uint8_t a_addr = (instr & (0x3f << 4)) >> 4;
-        uint8_t b_addr = (instr & (0x3f << 10)) >> 10;
+        uint8_t a_addr = (instr >> 4) & 0x3f;
+        uint8_t b_addr = (instr >> 10) & 0x3f;
         uint16_t *a,*b;
         if (opcode == 0) {
             opcode = a_addr | 0x80;
@@ -131,71 +134,75 @@ void main_loop(void) {
             skip = 0;
             continue;
         }
+        uint32_t res = 0;
         switch(opcode) {
             case 0x1: TRACE("SET");
-                *a = *b;
+                res = *b;
                 break;
             case 0x2: TRACE("ADD");
-                *a = *a + *b;
+                res = *a + *b;
                 break;
             case 0x3: TRACE("SUB");
-                *a = *a - *b;
+                res = *a - *b;
                 break;
             case 0x4: TRACE("MUL");
-                *a = *a * *b;
+                res = *a * *b;
                 break;
             case 0x5: TRACE("DIV");
-                *a = *a / *b;
+                res = *a / *b;
                 break;
             case 0x6: TRACE("MOD");
-                *a = *a % *b;
+                if (*b == 0) {
+                    res = 0;
+                } else {
+                    res = *a % *b;
+                }
                 break;
             case 0x7: TRACE("SHL");
-                *a = *a << *b;
+                res = *a << *b;
                 break;
             case 0x8: TRACE("SHR");
-                *a = *a >> *b;
+                res = *a >> *b;
                 break;
             case 0x9: TRACE("AND");
-                *a = *a & *b;
+                res = *a & *b;
                 break;
             case 0xa: TRACE("BOR");
-                *a = *a | *b;
+                res = *a | *b;
                 break;
             case 0xb: TRACE("XOR");
-                *a = *a ^ *b;
+                res = *a ^ *b;
                 break;
             case 0xc: TRACE("IFE");
                 if (*a != *b) {
                     skip = 1;
                 }
-                break;
+                continue;
             case 0xd: TRACE("IFN");
                 if (*a == *b) {
                     skip = 1;
                 }
-                break;
+                continue;
             case 0xe: TRACE("IFG");
                 if (*a <= *b) {
                     skip = 1;
                 }
-                break;
+                continue;
             case 0xf: TRACE("IFL");
                 if (*a >= *b) {
                     skip = 1;
                 }
-                break;
+                continue;
             case 0x80 | 0x1: TRACE("JSR");
                 mem[--SP] = PC;
                 PC = *a;
-                break;
+                continue;
             default:
                 return;
                 assert(0);
         }
-#ifdef ENABLE_TRACE
-        print_regs();
-#endif
+        *a = res & 0xffff;
+        O = (res >> 16) & 0xffff;
     }
 }
 
