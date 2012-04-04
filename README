@@ -1,17 +1,26 @@
-This is a emulator for Notch's DCPU-16. Implemented in C
+This is a emulator/assembler/disassembler for Notch's DCPU-16. Implemented in C
 
-to build:
+To build:
 mkdir build
 cd build
 cmake ..
 make
 
-to run: 
+To run: 
 ./dcpu ../mem1_text.hex
 
-if ENABLE_TRACE is defined, it will print out the instructions it is executing.
+If ENABLE_TRACE is defined, it will print out the instructions it is executing.
 In any case, it will print out a small section of the memory before and after
 execution, as well as register values
 
-there is also a disassembler written in python3, which can be run via:
+The assembler is written in python 3 and requires ply which can be found at:
+http://www.dabeaz.com/ply/ply.html
+
+it can be run like:
+./asm.py program.asm
+
+and will produce a program.hex file in the same directory which can then be run
+by dcpu
+
+There is also a disassembler, which can be run via:
 ./disasm.py ./mem1_text.hex
