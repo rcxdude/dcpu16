@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import utils
 import sys
-import dasm.instrs as maps
+import dasm.instrs as instrs
 
 instrs.addrs.update({
     0x1e: "[__WORD]",
@@ -44,7 +44,7 @@ for pos,word in enumerate(wordlist):
             a_spec,skip = decode_addr((word & (0x3f << 10)) >> 10)
             word_skip += skip
             b_spec = ''
-            instr = instrs.ext_opcodes[(word & (0x3f) << 4) >> 4]
+            instr = instrs.ext_opcodes.get((word & (0x3f) << 4) >> 4,'INV')
         else:
             instr = instrs.opcodes[opcode]
             a_spec,skip = decode_addr((word & (0x3f << 4)) >> 4)
@@ -55,4 +55,4 @@ for pos,word in enumerate(wordlist):
         asm_line_words = [word]
     if not word_skip:
         word_str = ' '.join(('0x{:0>4x}'.format(x) for x in asm_line_words))
-        print('{:0>4x}: {:<30} ; {}'.format(pos,asm_line,word_str))
+        print('{:0>4x}: {:<30} ; {}'.format(pos - 1,asm_line,word_str))

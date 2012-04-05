@@ -1,20 +1,62 @@
-tokens = ('COLON','RBRACKET','LBRACKET',
-           'NUMBER', 'PLUS', 'COMMA',
-           'NAME', 'COMMENT')
+from . import instrs
+tokens = (
+'RBRACKET',
+'LBRACKET',
+'MACRO',
+'NUMBER',
+'EQUALS',
+'PLUS',
+'MINUS',
+'COMMA',
+'COMMENT',
+'STRING',
+'NAME',
+'DAT',
+'INSTR',
+'ADDR',
+'LABEL'
+)
 
-t_COLON = r':'
 t_LBRACKET = r'\['
 t_RBRACKET = r'\]'
 t_PLUS = r'\+'
+t_MINUS = r'-'
+t_EQUALS = r'='
+t_MACRO = r'\$[a-zA-Z_][a-zA-Z0-9_]*'
 t_COMMA = r','
-t_NAME = r'[a-zA-Z_][a-zA-Z0-9_]*'
+
+def t_STRING(t):
+    r'"(\\"|[^"])*"'
+    t.value = t.value[1:-1]
+    return t
+
+def t_LABEL(t):
+    r':[a-zA-Z_][a-zA-Z0-9_]*'
+    t.value = t.value[1:]
+    return t
+
+def t_NAME(t):
+    r'[a-zA-Z_][a-zA-Z0-9_]*'
+    value = t.value.upper()
+    if value in instrs.opcodes or \
+       value in instrs.ext_opcodes:
+        t.type = 'INSTR'
+        t.value = value
+    elif value in instrs.regs or \
+       value in instrs.addrs:
+        t.type = 'ADDR'
+        t.value = value
+    elif value == 'DAT':
+        t.type = 'DAT'
+        t.value = value
+    return t
 
 def t_COMMENT(t):
     r';.*'
     pass
 
 def t_NUMBER(t):
-    r'(0x)?\d+'
+    r'(0x)?[0-9a-fA-F]+'
     if t.value.startswith('0x'):
         t.value = int(t.value,16)
     elif t.value.startswith('0'):
@@ -35,3 +77,6 @@ def t_error(t):
 
 import ply.lex
 lexer = ply.lex.lex()
+
+if __name__ == '__main__':
+    ply.lex.runmain()

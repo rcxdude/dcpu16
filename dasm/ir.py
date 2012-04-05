@@ -3,7 +3,7 @@ class UnknownInstruction(Exception):
     def __init__(self,instruction):
         self.instruction = instruction
 
-    def __repr__(self):
+    def __str__(self):
         return "Unknown instruction {}".format(self.instruction)
 
 class Instruction:
@@ -40,15 +40,8 @@ class Instruction:
             words.append(b_word)
         return words
 
-class UnknownLabel(Exception):
-    def __init__(self, label):
-        self.label = label
-
-    def __rept__(self):
-        return 'Unknown label {}'.format(self.label)
-
 class Address:
-    def __init__(self, name = None, direct=True, offset=0, labels = None):
+    def __init__(self, name = None, direct=True, offset=None, labels = None):
         self.name = name
         self.direct = direct
         self.offset = offset
@@ -63,37 +56,94 @@ class Address:
     def assemble(self):
         if self.direct:
             if self.name is None:
-                if (self.offset < 0x20):
-                    return (self.offset | 0x20,None)
+                if (self.offset.addr() < 0x20):
+                    return (self.offset.addr() | 0x20,None)
                 else:
-                    return (0x1f,self.offset)
-                return self.offset
+                    return (0x1f,self.offset.addr())
             if self.name in instrs.regs:
                 return (instrs.regs[self.name],None)
             elif self.name in instrs.addrs:
                 return (instrs.addrs[self.name],None)
-            elif self.name in self.labels:
-                addr = self.labels[self.name].instr.addr
-                if addr < 0x20:
-                    return (addr | 0x20, None)
-                else:
-                    return (0x1f,addr)
-            else:
-                raise UnknownLabel(self.name)
         else:
             if self.name is None:
-                return (0x1e, self.offset)
-            elif self.offset == 0:
+                return (0x1e, self.offset.addr())
+            elif self.offset is None or self.offset.addr() == 0:
                 return (instrs.regs[self.name] + 0x8, None)
             else:
-                return (instrs.regs[self.name] + 0x10, self.offset)
+                return (instrs.regs[self.name] + 0x10, self.offset.addr())
 
+class Word:
+    def __init__(self, word):
+        self.word = word
+
+    def assemble(self):
+        return [self.word]
+
+class String:
+    def __init__(self, string):
+        self.string = string
+
+    def assemble(self):
+        return [ord(c) for c in self.string]
+
+class Data(list):
+    def __init__(self, *args, **kargs):
+        super().__init__(*args, **kargs)
+        self.addr = -1
+
+    def assemble(self):
+        ret = []
+        for d in self:
+            ret.extend(d.assemble())
+        return ret
 
 class Label:
     def __init__(self, name, instr, addr = None):
         self.name = name
         self.instr = instr
 
+    def addr(self):
+        return self.instr.addr
+
     def __repr__(self):
         return 'Label({}, {})'.format(self.name, self.instr)
 
+class UnknownLabel(Exception):
+    def __init__(self, label):
+        self.label = label
+
+    def __str__(self):
+        return 'Unknown label {}'.format(self.label)
+
+class LabelOffset:
+    def __init__(self, name, labels = None):
+        self.name = name
+        if labels is None:
+            self.labels = {}
+        else:
+            self.labels = labels
+
+    def addr(self):
+        if self.name not in self.labels:
+            raise UnknownLabel(self.name)
+        return self.labels[self.name].addr()
+
+    def __repr__(self):
+        return 'LabelOffset({})'.format(self.name)
+
+class FixedOffset:
+    def __init__(self, addr):
+        self._addr = addr
+
+    def addr(self):
+        return self._addr
+
+    def __repr__(self):
+        return 'FixedOffset({})'.format(self.addr())
+
+class GroupOffset(list):
+    def __init__(self, *args, **kargs):
+        super().__init__(*args, **kargs)
+
+    def addr(self):
+        return sum((x.addr() for x in self))

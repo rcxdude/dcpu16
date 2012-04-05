@@ -13,17 +13,31 @@ asm_listing = open(asm_filename,'r').read()
 
 #smurf smurf smurf
 dasm.parse.parser.parse(asm_listing)
+
+if dasm.parse.errors:
+    for t in dasm.parse.errors:
+        last_newline = asm_listing.rfind('\n',0,t.lexpos)
+        next_newline = asm_listing.find('\n',t.lexpos)
+        if last_newline < 0:
+            last_newline = 0
+        column = t.lexpos - last_newline
+        print("Syntax error near '{}', line {}, column {}".format(t.value, t.lineno, column))
+        print(asm_listing[last_newline + 1:next_newline])
+        print(" " * (column - 1) + "^")
+    exit(2)
+
 labels = dasm.parse.labels
-instructions = dasm.parse.instructions
+instructions = dasm.parse.statements
 #print(labels)
 #print(instructions)
-last_addr = -1
-addr = 0
 
-while last_addr != addr:
-    last_addr = addr
+keep_going = True
+while keep_going:
     addr = 0
+    keep_going = False
     for instr in instructions:
+        if instr.addr != addr:
+            keep_going = True
         instr.addr = addr
         addr += len(instr.assemble())
 
@@ -41,4 +55,4 @@ output_file = open(output_filename + '.hex','w')
 output_file.write('\n'.join(output_hex) + '\n')
 
 #for instr in instructions:
-#    print(' '.join(("0x{:0>4x}".format(x) for x in instr.assemble())))
+#    print('{:>4x}: '.format(instr.addr) + ' '.join(("0x{:0>4x}".format(x) for x in instr.assemble())))

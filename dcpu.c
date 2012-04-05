@@ -15,7 +15,7 @@ struct cpu_state {
 };
 
 static void init_cpu_state(struct cpu_state *state) {
-    memset(state,0,sizeof(struct cpu_state));
+    memset(state, 0, sizeof(struct cpu_state));
     state->SP = MEM_SIZE - 1;
 }
 
@@ -57,7 +57,7 @@ static uint16_t *lookup(struct cpu_state *s, uint8_t addr) {
     }
     if (addr < 0x18) {
         s->cycles++;
-        return s->mem + *reg(s, addr - 0xf) + s->mem[s->PC++];
+        return s->mem + *reg(s, addr - 0x10) + s->mem[s->PC++];
     }
     switch(addr) {
         case 0x18: //POP
@@ -123,7 +123,6 @@ static void print_regs(struct cpu_state *s) {
 }
 
 static void trace(struct cpu_state *s, char *instr, uint16_t a_addr, uint16_t *a, uint16_t b_addr, uint16_t *b) {
-    print_regs(s);
     printf("INSTR: %s a: %4x(%4x) b: %4x(%4x)\n", instr, a_addr, *a, b_addr, b?*b:0);
     printf("STATE: cycles: %lu, PC + 1: %4x, PC + 2: %4x\n", s->cycles, s->mem[s->PC + 1], s->mem[s->PC + 2]);
 }
@@ -259,6 +258,10 @@ void step_cpu(struct cpu_state *s) {
 
 void run_forever(struct cpu_state *s) {
     while(!s->stopped) {
+#ifdef ENABLE_TRACE
+        printf("----\n");
+        print_regs(s);
+#endif
         step_cpu(s);
     }
 }
