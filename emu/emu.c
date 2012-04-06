@@ -121,6 +121,33 @@ void print_mem(struct cpu *s, uint16_t start, uint16_t end) {
     }
 }
 
+void get_next_nonzero_chunk(struct cpu *s, uint16_t last_addr, uint16_t *start_addr, uint16_t *end_addr) {
+    uint32_t pos;
+    int start_chunk = 0;
+    for (pos = last_addr; pos < MEM_SIZE / 8; pos++) {
+        int non_zero_chunk = 0;
+        int ii;
+        for (ii = 0; ii < 8; ii++) {
+            if (s->mem[8*pos + ii] != 0) {
+                non_zero_chunk = 1;
+                break;
+            }
+        }
+        if (non_zero_chunk && !start_chunk) {
+            start_chunk = 1;
+            *start_addr = pos;
+        }
+        if (start_chunk && !non_zero_chunk) {
+            break;
+        }
+    }
+    if (!start_chunk) {
+        *end_addr = *start_addr = -1;
+        return;
+    }
+    *end_addr = pos;
+}
+
 void print_regs(struct cpu *s) {
     printf("A: %4x B: %4x C: %4x X: %4x Y: %4x Z: %4x I: %4x J: %4x\n",
            s->A, s->B, s->C, s->X, s->Y, s->Z, s->I, s->J);

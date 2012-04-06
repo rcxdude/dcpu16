@@ -27,6 +27,7 @@ void step_cpu(struct cpu *s);
 void run_forever(struct cpu *s); 
 void run_to_breakpoint(struct cpu *s);
 void read_mem_file(struct cpu *s, FILE *ifile);
+void get_next_nonzero_chunk(struct cpu *s, uint16_t last_addr, uint16_t *start_addr, uint16_t *end_addr);
 
 void set_breakpoint(struct cpu *s, uint16_t address);
 void del_breakpoint(struct cpu *s, uint16_t address);
