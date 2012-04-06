@@ -33,8 +33,8 @@ class DCPU:
     def run_to_breakpoint(self):
         lib.run_to_breakpoint(byref(self.struct))
 
-    def step(self):
-        lib.step_cpu(byref(self.struct))
+    def step(self, n_steps = 1):
+        lib.run_steps(byref(self.struct), c_ulong(n_steps))
 
     def load_from_hex(self, mem, offset = 0):
         if len(mem) + offset > MEM_SIZE:

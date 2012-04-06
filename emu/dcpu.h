@@ -25,7 +25,8 @@ struct cpu {
 void init_cpu(struct cpu *s);
 void step_cpu(struct cpu *s); 
 void run_forever(struct cpu *s); 
-void run_to_breakpoint(struct cpu *s);
+unsigned long run_steps(struct cpu *s, unsigned long steps);
+unsigned long run_to_breakpoint(struct cpu *s, unsigned long steps);
 void read_mem_file(struct cpu *s, FILE *ifile);
 void get_next_nonzero_chunk(struct cpu *s, uint16_t last_addr, uint16_t *start_addr, uint16_t *end_addr);
 

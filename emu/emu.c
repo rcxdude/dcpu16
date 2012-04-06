@@ -303,9 +303,20 @@ void run_forever(struct cpu *s) {
     }
 }
 
-void run_to_breakpoint(struct cpu *s) {
+unsigned long run_steps(struct cpu *s, unsigned long steps) {
+    unsigned long start_cycles = s->cycles;
+    unsigned long ii;
+    for(ii = 0; (ii < steps || steps == 0) && !s->stopped; ii++) {
+        step_cpu(s);
+    }
+    return s->cycles - start_cycles;
+}
+
+unsigned long run_to_breakpoint(struct cpu *s, unsigned long steps) {
+    unsigned long start_cycles = s->cycles;
     s->breakpoint = -1;
-    while(!s->stopped) {
+    unsigned long ii;
+    for(ii = 0; (ii < steps || steps == 0) && !s->stopped; ii++) {
         step_cpu(s);
         if(s->breakpoints[s->PC] & BREAKPOINT) {
             s->breakpoint = s->PC;
@@ -315,6 +326,7 @@ void run_to_breakpoint(struct cpu *s) {
             break;
         }
     }
+    return s->cycles - start_cycles;
 }
 
 void read_mem_file(struct cpu *s, FILE *ifile) {

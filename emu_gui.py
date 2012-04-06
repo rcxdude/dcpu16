@@ -24,6 +24,8 @@ class ControlPanel(QWidget):
         self.step.pressed.connect(self.program.step)
         self.clear.pressed.connect(self.program.clear)
         self.reset.pressed.connect(self.program.reset)
+        self.stop.pressed.connect(self.program.stop)
+        self.start.pressed.connect(self.program.start)
         self.assemble = QPushButton("Assemble")
         self.assemble.pressed.connect(self.program.assemble)
         self.layout.addWidget(self.start)
@@ -39,6 +41,9 @@ class AsmProgram:
         self.cpu = cpu
         self.editor = editor
         self.listing = ''
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.timer_step)
+        self.timer.setInterval(400)
 
     def assemble(self):
         self.listing = self.editor.getText()
@@ -64,7 +69,18 @@ class AsmProgram:
 
     def reset(self):
         self.cpu.struct.PC = 0
+        self.cpu.struct.stopped = 0
         self.cpu.registers.reset()
+
+    def timer_step(self):
+        self.cpu.step()
+        self.state_changed()
+
+    def start(self):
+        self.timer.start()
+
+    def stop(self):
+        self.timer.stop()
 
 
 class CPUWidget(QWidget):

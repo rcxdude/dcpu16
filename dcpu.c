@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
     print_mem(&s, 0, MEM_SIZE-1);
     set_breakpoint(&s,0x8);
     while(!s.stopped) {
-        run_to_breakpoint(&s);
+        run_to_breakpoint(&s,0);
         printf("Hit breakpoint 0x%04x\n",s.breakpoint);
         print_regs(&s);
         print_mem(&s, 0 ,MEM_SIZE-1);
