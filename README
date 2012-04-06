@@ -24,3 +24,7 @@ by dcpu
 
 There is also a disassembler, which can be run via:
 ./disasm.py ./mem1_text.hex
+
+An assembler/emulator GUI is also availible, which requires PyQt4 (although it
+should be compatible with pyside with minimal effort. It can be run as
+./emu-gui.py
