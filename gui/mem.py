@@ -3,11 +3,13 @@ from PyQt4.QtGui import *
 from . import dcpu
 import utils
 import functools
+import math
 
 class WordSpinBox(QSpinBox):
     def __init__(self, *args, **kargs):
         super().__init__(*args, **kargs)
         self.setRange(0, 0xffff)
+        self.setWrapping(True)
 
     def textFromValue(self, value):
         return '0x{:0>4x}'.format(value)
@@ -30,9 +32,9 @@ class MemWordDelegate(QStyledItemDelegate):
         return WordSpinBox().sizeHint()
 
 class CPUMemTableModel(QAbstractTableModel):
-    def __init__(self, mem, *args, **kargs):
+    def __init__(self, cpu, *args, **kargs):
         super().__init__(*args, **kargs)
-        self.mem = mem
+        self.cpu = cpu
 
     def rowCount(self, parent):
         return int(dcpu.MEM_SIZE / 8)
@@ -40,16 +42,24 @@ class CPUMemTableModel(QAbstractTableModel):
     def columnCount(self, parent):
         return 8
 
-    def data(self, index, role):
+    def addr_data(self, addr, role):
+        if role == Qt.BackgroundRole:
+            if addr == self.cpu.struct.PC:
+                return QBrush(Qt.darkRed)
+            if addr == self.cpu.struct.SP:
+                return QBrush(Qt.darkBlue)
+        word = self.cpu.struct.mem[addr]
         if role == Qt.DisplayRole:
-            word = self.mem[index.row() * 8 + index.column()]
             return '0x{:0>4x}'.format(word)
         if role == Qt.EditRole:
-            word = self.mem[index.row() * 8 + index.column()]
             return word
 
+    def data(self, index, role):
+        addr = index.row() * 8 + index.column()
+        return self.addr_data(addr, role)
+
     def setData(self, index, value, role):
-        self.mem[index.row() * 8 + index.column()] = value
+        self.cpu.struct.mem[index.row() * 8 + index.column()] = value
         self.dataChanged.emit(index, index)
         return True
 
@@ -62,10 +72,9 @@ class CPUMemTableModel(QAbstractTableModel):
         if role == Qt.DisplayRole:
             return '{:0>4x}'.format(section * 8)
 
-class CPUNonZeroMemTableModel(QAbstractTableModel):
-    def __init__(self, cpu, *args, **kargs):
+class CPUNonZeroMemTableModel(CPUMemTableModel):
+    def __init__(self, *args, **kargs):
         super().__init__(*args, **kargs)
-        self.cpu = cpu
         self.get_chunks()
         self.modelAboutToBeReset.connect(self.get_chunks)
 
@@ -76,14 +85,14 @@ class CPUNonZeroMemTableModel(QAbstractTableModel):
         return 8
 
     def data(self, index, role):
-        if not role == Qt.DisplayRole or role == Qt.EditRole:
-            return
         addr = self.get_addr_for_row(index.row())
-        word = self.cpu.struct.mem[addr * 8 + index.column()]
-        if role == Qt.DisplayRole:
-            return '0x{:0>4x}'.format(word)
-        if role == Qt.EditRole:
-            return word
+        return self.addr_data(addr * 8 + index.column(), role)
+
+    def setData(self, index, value, role):
+        addr = self.get_addr_for_row(index.row())
+        self.cpu.struct.mem[addr * 8 + index.column()] = value
+        self.dataChanged.emit(index, index)
+        return True
 
     def headerData(self, section, orientation, role):
         if orientation == Qt.Horizontal:
@@ -99,9 +108,22 @@ class CPUNonZeroMemTableModel(QAbstractTableModel):
 
     def get_chunks(self):
         chunks = self.cpu.get_nonzero_chunks()
+        SP = math.floor(self.cpu.struct.SP / 8)
+        PC = math.floor(self.cpu.struct.PC / 8)
+        for chunk in chunks:
+            if chunk[0] <= SP <= chunk[1]:
+                SP = -1
+            if chunk[0] <= PC <= chunk[1]:
+                PC = -1
+
+        if SP != -1:
+            chunks.append((SP,SP + 1))
+        if PC != -1 and SP != PC:
+            chunks.append((PC,PC + 1))
+
         self.rows = 0
         self.chunks = []
-        for chunk in chunks:
+        for chunk in sorted(chunks, key=lambda x: x[0]):
             self.chunks.append((self.rows, chunk[0], chunk[1]))
             self.rows += chunk[1] - chunk[0]
         self.chunks.reverse()
@@ -152,6 +174,8 @@ class RegistersWidget(QWidget):
             spinbox = WordSpinBox()
             spinbox.__register = register
             spinbox.editingFinished.connect(functools.partial(self.value_changed, spinbox))
+            if register in {"PC", "SP"}:
+                spinbox.valueChanged.connect(functools.partial(self.update_mem, spinbox))
             self.labels.append(label)
             self.spinboxes.append(spinbox)
             self.layout.addWidget(label, row, col*2)
@@ -160,6 +184,10 @@ class RegistersWidget(QWidget):
     def reset(self):
         for spinbox in self.spinboxes:
             spinbox.setValue(getattr(self.cpu.struct,spinbox.__register))
+
+    def update_mem(self, spinbox, value):
+        setattr(self.cpu.struct, spinbox.__register, spinbox.value())
+        self.cpu.mem_model.reset()
 
     def value_changed(self, spinbox):
         setattr(self.cpu.struct, spinbox.__register, spinbox.value())
@@ -172,7 +200,7 @@ class CPUMemWidget(QWidget):
         self.setLayout(self.layout)
 
         self.non_zero_mem_model = CPUNonZeroMemTableModel(self.cpu)
-        self.mem_model = CPUMemTableModel(self.cpu.struct.mem)
+        self.mem_model = CPUMemTableModel(self.cpu)
         self.cpu.mem_model = self.non_zero_mem_model
         self.mem_table = CPUMemTableView(self.non_zero_mem_model)
         self.show_empty = QCheckBox("Show Empty memory regions")

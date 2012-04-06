@@ -14,7 +14,8 @@ tokens = (
 'DAT',
 'INSTR',
 'ADDR',
-'LABEL'
+'LABEL',
+'UNEXPECTED'
 )
 
 import ply.lex
@@ -81,7 +82,11 @@ def Lexer(syntax_only = False):
         t.lexer.lineno += t.value.count("\n")
 
     def t_error(t):
-        print("Unexpected character {}".format(t.value[0]))
         t.lexer.skip(1)
+        if syntax_only:
+            t.type = 'UNEXPECTED'
+            return t
+        else:
+            print("Unexpected character {}".format(t.value[0]))
 
     return ply.lex.lex()

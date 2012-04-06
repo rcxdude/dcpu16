@@ -41,6 +41,7 @@ class AsmProgram:
         self.listing = ''
 
     def assemble(self):
+        self.listing = self.editor.getText()
         word_list, instructions = dasm.assembler.assemble_listing(self.listing)
         self.cpu.load_from_hex(word_list, 0)
         self.cpu.mem_model.reset()
@@ -58,7 +59,7 @@ class AsmProgram:
         self.state_changed()
 
     def clear(self):
-        self.cpu.load_from_hex([0] * (gui.dcpu.MEM_SIZE - 1),0)
+        self.cpu.load_from_hex([0] * (gui.dcpu.MEM_SIZE),0)
         self.state_changed()
 
     def reset(self):

@@ -10,10 +10,14 @@ class AsmSyntaxHighlighter(QSyntaxHighlighter):
         self.formats = collections.defaultdict(QTextCharFormat)
         self.formats['ADDR'].setForeground(Qt.darkMagenta)
         self.formats['INSTR'].setForeground(Qt.cyan)
+        self.formats['INSTR'].setFontWeight(QFont.Bold)
         self.formats['COMMENT'].setForeground(Qt.green)
-        self.formats['NUMBER'].setForeground(Qt.red)
+        self.formats['NUMBER'].setForeground(Qt.blue)
         self.formats['LABEL'].setForeground(Qt.darkRed)
         self.formats['NAME'].setFontWeight(QFont.Bold)
+        self.formats['UNEXPECTED'].setFontUnderline(True)
+        self.formats['UNEXPECTED'].setForeground(Qt.red)
+        self.formats['STRING'].setForeground(Qt.cyan)
 
     def highlightBlock(self, string):
         lexer = self.lexer.clone()
