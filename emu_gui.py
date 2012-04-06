@@ -4,6 +4,8 @@ from PyQt4.QtGui import *
 import sys
 import gui.dcpu
 import dasm.assembler
+import dasm.lex
+import gui.text
 import utils
 import gui.mem
 
@@ -32,11 +34,6 @@ class ControlPanel(QWidget):
         self.layout.addWidget(self.assemble)
         self.layout.addStretch(1)
 
-class AsmListingEditor(QTextEdit):
-    def __init__(self, *args, **kargs):
-        super().__init__(*args, **kargs)
-        self.setFontFamily("monospace")
-
 class AsmProgram:
     def __init__(self, cpu, editor):
         self.cpu = cpu
@@ -50,7 +47,7 @@ class AsmProgram:
 
     def set_listing(self, listing):
         self.listing = listing
-        self.editor.setPlainText(listing)
+        self.editor.setText(listing)
 
     def state_changed(self):
         self.cpu.mem_model.reset()
@@ -75,7 +72,7 @@ class CPUWidget(QWidget):
         self.cpu = gui.dcpu.DCPU()
         self.layout = QHBoxLayout()
         self.setLayout(self.layout)
-        self.listing_editor = AsmListingEditor()
+        self.listing_editor = gui.text.AsmListingEditor(dasm.lex.Lexer(True))
         self.memory = gui.mem.CPUMemWidget(self.cpu)
         self.program = AsmProgram(self.cpu, self.listing_editor)
         self.controls = ControlPanel(self.program)

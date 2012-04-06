@@ -1,4 +1,5 @@
 from . import parse
+from . import lex
 
 class AsmSyntaxErrors(Exception):
     def __init__(self, errors, asm_listing):
@@ -18,7 +19,7 @@ class AsmSyntaxErrors(Exception):
 
 def assemble_listing(listing):
     #smurf smurf smurf
-    parse.parser.parse(listing)
+    parse.parser.parse(listing, lexer = lex.Lexer())
 
     if parse.errors:
         raise AsmSyntaxErrors(parse.errors, listing)

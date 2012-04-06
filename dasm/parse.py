@@ -1,4 +1,5 @@
 from .lex import tokens
+from . import lex
 from . import ir
 
 labels = {}
@@ -105,4 +106,3 @@ def p_error(t):
 
 import ply.yacc
 parser = ply.yacc.yacc()
-
