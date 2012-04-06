@@ -3,12 +3,12 @@
 #include <string.h>
 #include "dcpu.h"
 
-void init_cpu_state(struct cpu_state *state) {
-    memset(state, 0, sizeof(struct cpu_state));
-    state->SP = MEM_SIZE - 1;
+void init_cpu(struct cpu *s) {
+    memset(s, 0, sizeof(*s));
+    s->breakpoint = -1;
 }
 
-static uint16_t *reg(struct cpu_state *s, uint8_t addr) {
+static uint16_t *reg(struct cpu *s, uint8_t addr) {
     switch(addr) {
         case 0x0:
             return &(s->A);
@@ -32,11 +32,27 @@ static uint16_t *reg(struct cpu_state *s, uint8_t addr) {
     }
 }
 
+void set_breakpoint(struct cpu *s, uint16_t addr) {
+    s->breakpoints[addr] |= BREAKPOINT;
+}
+
+void del_breakpoint(struct cpu *s, uint16_t addr) {
+    s->breakpoints[addr] &= ~BREAKPOINT;
+}
+
+void set_watchpoint(struct cpu *s, uint16_t addr) {
+    s->breakpoints[addr] |= WATCHPOINT;
+}
+
+void del_watchpoint(struct cpu *s, uint16_t addr) {
+    s->breakpoints[addr] &= ~WATCHPOINT;
+}
+
 #define N_ADDRS 2
 static uint16_t lit_pos;
 static uint16_t lit[N_ADDRS];
 
-static uint16_t *lookup(struct cpu_state *s, uint8_t addr) {
+static uint16_t *lookup(struct cpu *s, uint8_t addr) {
     assert(addr < 0x40);
     if (addr < 0x8) {
         return reg(s, addr);
@@ -75,7 +91,7 @@ static uint16_t *lookup(struct cpu_state *s, uint8_t addr) {
     }
 }
 
-static void decode(struct cpu_state *s, uint8_t addr) {
+static void decode(struct cpu *s, uint8_t addr) {
     assert(addr < 0x40);
     if (addr >= 0x10 && addr < 0x18 || addr == 0x1e || addr == 0x1f) {
         //does this cost cycles?
@@ -83,7 +99,7 @@ static void decode(struct cpu_state *s, uint8_t addr) {
     }
 }
 
-void print_mem(struct cpu_state *s, uint16_t start, uint16_t end) {
+void print_mem(struct cpu *s, uint16_t start, uint16_t end) {
     uint32_t pos;
     for (pos = start; pos < end; pos += 8) {
         int ii;
@@ -105,13 +121,13 @@ void print_mem(struct cpu_state *s, uint16_t start, uint16_t end) {
     }
 }
 
-void print_regs(struct cpu_state *s) {
+void print_regs(struct cpu *s) {
     printf("A: %4x B: %4x C: %4x X: %4x Y: %4x Z: %4x I: %4x J: %4x\n",
            s->A, s->B, s->C, s->X, s->Y, s->Z, s->I, s->J);
     printf("PC: %4x SP: %4x O: %4x\n", s->PC, s->SP, s->O);
 }
 
-static void trace(struct cpu_state *s, char *instr, uint16_t a_addr, uint16_t *a, uint16_t b_addr, uint16_t *b) {
+static void trace(struct cpu *s, char *instr, uint16_t a_addr, uint16_t *a, uint16_t b_addr, uint16_t *b) {
     printf("INSTR: %s a: %4x(%4x) b: %4x(%4x)\n", instr, a_addr, *a, b_addr, b?*b:0);
     printf("STATE: cycles: %lu, PC + 1: %4x, PC + 2: %4x\n", s->cycles, s->mem[s->PC + 1], s->mem[s->PC + 2]);
 }
@@ -122,7 +138,11 @@ static void trace(struct cpu_state *s, char *instr, uint16_t a_addr, uint16_t *a
 #define TRACE(x)
 #endif
 
-void step_cpu(struct cpu_state *s) {
+void step_cpu(struct cpu *s) {
+#ifdef ENABLE_TRACE
+    printf("----\n");
+    print_regs(s);
+#endif
     uint16_t instr;
     instr = s->mem[s->PC++];
     s->cycles++;
@@ -237,25 +257,40 @@ void step_cpu(struct cpu_state *s) {
             s->cycles++;
             break;
         case 0x80 | 0x14: TRACE("STOP");
-            s->stopped = 1;
+            s->stopped = STOP_INSTR;
             break;
         default:
-            assert(0);
+            s->stopped = INVALID_INSTR;
+            break;
+    }
+    if (a <= s->mem + MEM_SIZE && a >= s->mem &&
+        s->breakpoints[a - s->mem] & WATCHPOINT) {
+        s->breakpoint = a - s->mem;
     }
 }
 
 
-void run_forever(struct cpu_state *s) {
+void run_forever(struct cpu *s) {
     while(!s->stopped) {
-#ifdef ENABLE_TRACE
-        printf("----\n");
-        print_regs(s);
-#endif
         step_cpu(s);
     }
 }
 
-void read_mem_file(struct cpu_state *s, FILE *ifile) {
+void run_to_breakpoint(struct cpu *s) {
+    s->breakpoint = -1;
+    while(!s->stopped) {
+        step_cpu(s);
+        if(s->breakpoints[s->PC] & BREAKPOINT) {
+            s->breakpoint = s->PC;
+            break;
+        }
+        if(s->breakpoint != -1) {
+            break;
+        }
+    }
+}
+
+void read_mem_file(struct cpu *s, FILE *ifile) {
     int pos, val;
     while (fscanf(ifile,"%x:",&pos) != EOF) {
         int ii;

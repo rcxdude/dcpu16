@@ -2,6 +2,14 @@ def chunk(l,n):
     for i in range(0,len(l),n):
         yield l[i:i+n]
 
+def string_to_value(string):
+    if string.startswith('0x'):
+        return int(string[2:],16)
+    elif string.startswith('0'):
+        return int(string,8)
+    else:
+        return int(string)
+
 def hex_to_words(hexstring):
     words = []
     pos = 0
