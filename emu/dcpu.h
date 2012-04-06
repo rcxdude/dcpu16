@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #define MEM_SIZE 0x10000
-#define ENABLE_TRACE
+//#define ENABLE_TRACE
 
 #define BREAKPOINT 1 << 1
 #define WATCHPOINT 1 << 2

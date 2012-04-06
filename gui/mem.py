@@ -14,11 +14,16 @@ class WordSpinBox(QSpinBox):
     def textFromValue(self, value):
         return '0x{:0>4x}'.format(value)
 
-    def valueFromText(self, text):
+    def validate(self, text, pos):
         try:
-            return utils.string_to_value(text)
+            self.valueFromText(text)
+            state = QValidator.Acceptable
         except ValueError:
-            return 0
+            state = QValidator.Intermediate
+        return (state, text, pos)
+
+    def valueFromText(self, text):
+        return utils.string_to_value(text)
 
 class MemWordDelegate(QStyledItemDelegate):
     def __init__(self, mem_model, *args, **kargs):

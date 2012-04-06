@@ -1,40 +1,132 @@
 #!/usr/bin/env python3
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
+
 import sys
+import functools
+import math
+
 import gui.dcpu
 import dasm.assembler
 import dasm.lex
 import gui.text
-import utils
 import gui.mem
+import utils
+
+class HertzSpinBox(QSpinBox):
+    def __init__(self, *args, **kargs):
+        super().__init__(*args, **kargs)
+        self.setSuffix("Hz")
+
+    def textFromValue(self, value):
+        if value >= 1000:
+            value = value / 1000
+            return '{}k'.format(value)
+        else:
+            return '{}'.format(value)
+
+    def validate(self, text, pos):
+        try:
+            self.valueFromText(text)
+            state = QValidator.Acceptable
+        except ValueError:
+            state = QValidator.Intermediate
+        return (state, text, pos)
+
+    def valueFromText(self, text):
+        text = text.replace("Hz","")
+        if text.endswith("k"):
+            return float(text[:-1]) * 1000
+        else:
+            return float(text)
+
+    def stepBy(self, steps):
+        min_step = 10**(int(math.log10(self.value())) - 1)
+        if min_step < 1:
+            min_step = 1
+        self.setValue(self.value() + steps * min_step)
+
+
+class SpeedControl(QWidget):
+    def __init__(self, *args, **kargs):
+        super().__init__(*args, **kargs)
+        self.layout = QHBoxLayout()
+        self.setLayout(self.layout)
+
+        self.value = 1
+
+        self.slider = QSlider(Qt.Horizontal)
+        self.slider.setMinimum(0)
+        self.slider.setMaximum(100)
+        self.slider.valueChanged.connect(self.update_spinbox)
+
+        self.spinbox = HertzSpinBox()
+        self.spinbox.setMinimum(1)
+        self.spinbox.setMaximum(2e5)
+        self.spinbox.valueChanged.connect(self.update_slider)
+
+        self.layout.addWidget(self.slider)
+        self.layout.addWidget(self.spinbox)
+
+    def update_spinbox(self, value):
+        self.value = self.slider_to_actual(self.slider.value())
+        self.spinbox.valueChanged.disconnect(self.update_slider)
+        self.spinbox.setValue(self.value)
+        self.spinbox.valueChanged.connect(self.update_slider)
+
+    def update_slider(self, value):
+        self.value = value
+        value = self.actual_to_slider(value)
+        self.slider.valueChanged.disconnect(self.update_spinbox)
+        self.slider.setValue(value)
+        self.slider.valueChanged.connect(self.update_spinbox)
+
+    def actual_to_slider(self, actual):
+        return int((math.log(actual / 2e5, 1e5) + 1) * 100)
+
+    def slider_to_actual(self, sliderval):
+        return int(1e5**(sliderval/100 - 1) * 2e5)
+
+    def get_value(self):
+        return self.value
 
 class ControlPanel(QWidget):
     def __init__(self, program, *args, **kargs):
         super().__init__(*args, **kargs)
         self.program = program
 
-        self.layout = QVBoxLayout()
+        self.layout = QHBoxLayout()
         self.setLayout(self.layout)
-        self.start = QPushButton("Start")
-        self.stop = QPushButton("Stop")
+        self.startstop = QPushButton("Start")
         self.step = QPushButton("Step")
         self.reset = QPushButton("Reset")
         self.clear = QPushButton("Clear")
         self.step.pressed.connect(self.program.step)
         self.clear.pressed.connect(self.program.clear)
         self.reset.pressed.connect(self.program.reset)
-        self.stop.pressed.connect(self.program.stop)
-        self.start.pressed.connect(self.program.start)
+        self.startstop.pressed.connect(self.start_stop)
         self.assemble = QPushButton("Assemble")
         self.assemble.pressed.connect(self.program.assemble)
-        self.layout.addWidget(self.start)
-        self.layout.addWidget(self.stop)
+        self.speed = SpeedControl()
+        self.speed.slider.valueChanged.connect(functools.partial(program.set_speed, self.speed))
+        self.speed.spinbox.valueChanged.connect(functools.partial(program.set_speed, self.speed))
+        self.layout.addWidget(self.startstop)
         self.layout.addWidget(self.step)
         self.layout.addWidget(self.reset)
         self.layout.addWidget(self.clear)
         self.layout.addWidget(self.assemble)
+        self.layout.addWidget(self.speed)
         self.layout.addStretch(1)
+
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+
+    def start_stop(self):
+        if self.startstop.text() == "Start":
+            self.program.start()
+            self.startstop.setText("Stop")
+        else:
+            self.program.stop()
+            self.startstop.setText("Start")
 
 class AsmProgram:
     def __init__(self, cpu, editor):
@@ -43,7 +135,9 @@ class AsmProgram:
         self.listing = ''
         self.timer = QTimer()
         self.timer.timeout.connect(self.timer_step)
-        self.timer.setInterval(400)
+        self.run_speed = 1
+        self.n_steps = 1
+        self.timer.setInterval(1000/self.run_speed)
 
     def assemble(self):
         self.listing = self.editor.getText()
@@ -67,14 +161,23 @@ class AsmProgram:
         self.cpu.load_from_hex([0] * (gui.dcpu.MEM_SIZE),0)
         self.state_changed()
 
+    def set_speed(self, slider, value):
+        self.run_speed = slider.get_value()
+        timestep = 1/self.run_speed
+        if timestep < 100:
+            self.n_steps = int(100 / timestep)
+        self.timer.setInterval(timestep * self.n_steps)
+
     def reset(self):
         self.cpu.struct.PC = 0
         self.cpu.struct.stopped = 0
         self.cpu.registers.reset()
 
     def timer_step(self):
-        self.cpu.step()
+        self.cpu.step(self.n_steps)
         self.state_changed()
+        if self.cpu.struct.stopped:
+            self.stop()
 
     def start(self):
         self.timer.start()
@@ -88,13 +191,15 @@ class CPUWidget(QWidget):
         super().__init__(*args, **kargs)
         self.cpu = gui.dcpu.DCPU()
         self.layout = QHBoxLayout()
+        self.left_layout = QVBoxLayout()
         self.setLayout(self.layout)
         self.listing_editor = gui.text.AsmListingEditor(dasm.lex.Lexer(True))
         self.memory = gui.mem.CPUMemWidget(self.cpu)
         self.program = AsmProgram(self.cpu, self.listing_editor)
         self.controls = ControlPanel(self.program)
-        self.layout.addWidget(self.memory)
-        self.layout.addWidget(self.controls)
+        self.layout.addLayout(self.left_layout)
+        self.left_layout.addWidget(self.controls)
+        self.left_layout.addWidget(self.memory)
         self.layout.addWidget(self.listing_editor)
 
     def open_file(self, filename):
@@ -128,7 +233,7 @@ class EmuMainWindow(QMainWindow):
 
     def open_file(self):
         filename = QFileDialog.getOpenFileName(self, "Open asm file", ".",
-                "DCPU16 assembler files (*.asm);;" + 
+                "DCPU16 assembler files (*.asm *.dasm *.dasm16);;" + 
                  "DCPU16 hex files (*.hex)")
         if filename:
             self.center_view.open_file(filename)
