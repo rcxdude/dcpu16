@@ -163,7 +163,7 @@ class AsmProgram:
 
     def set_speed(self, slider, value):
         self.run_speed = slider.get_value()
-        timestep = 1/self.run_speed
+        timestep = 1000/self.run_speed
         if timestep < 100:
             self.n_steps = int(100 / timestep)
         self.timer.setInterval(timestep * self.n_steps)
@@ -171,7 +171,7 @@ class AsmProgram:
     def reset(self):
         self.cpu.struct.PC = 0
         self.cpu.struct.stopped = 0
-        self.cpu.registers.reset()
+        self.state_changed()
 
     def timer_step(self):
         self.cpu.step(self.n_steps)
@@ -186,6 +186,32 @@ class AsmProgram:
         self.timer.stop()
 
 
+class CPUScreen(QLabel):
+    def __init__(self, cpu, *args, **kargs):
+        super().__init__(*args, **kargs)
+        self.cpu = cpu
+        self.start = 0x8000
+        self.width = 32
+        self.height = 16
+        font = self.font()
+        font.setFamily("monospace")
+        self.setFont(font)
+        self.cpu.mem_model.modelReset.connect(self.refresh)
+        self.cpu.mem_model.dataChanged.connect(self.refresh)
+        self.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.refresh()
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+
+    def refresh(self, dummy = None, dummy2 = None):
+        lines = []
+        for i in range(self.height):
+            start = self.start + i * self.width
+            end = start + self.width
+            words = (x & 0x7f for x in self.cpu.struct.mem[start:end])
+            words = bytes((x if x > 0x1f else 0x20 for x in words))
+            lines.append(str(words, encoding='ascii').rstrip())
+        self.setText('\n'.join(lines))
+
 class CPUWidget(QWidget):
     def __init__(self, *args, **kargs):
         super().__init__(*args, **kargs)
@@ -196,10 +222,12 @@ class CPUWidget(QWidget):
         self.listing_editor = gui.text.AsmListingEditor(dasm.lex.Lexer(True))
         self.memory = gui.mem.CPUMemWidget(self.cpu)
         self.program = AsmProgram(self.cpu, self.listing_editor)
+        self.screen = CPUScreen(self.cpu)
         self.controls = ControlPanel(self.program)
         self.layout.addLayout(self.left_layout)
         self.left_layout.addWidget(self.controls)
         self.left_layout.addWidget(self.memory)
+        self.left_layout.addWidget(self.screen)
         self.layout.addWidget(self.listing_editor)
 
     def open_file(self, filename):

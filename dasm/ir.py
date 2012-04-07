@@ -84,7 +84,8 @@ class String:
         self.string = string
 
     def assemble(self):
-        return [ord(c) for c in self.string]
+        words = bytes(self.string, encoding='ascii')
+        return [int(w) for w in words]
 
 class Data(list):
     def __init__(self, *args, **kargs):
